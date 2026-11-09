@@ -1,78 +1,47 @@
-/**
- * @brief Basic example demonstrating usage of 107-Arduino-BMP388 library.
- */
+#include <Wire.h>
+#include <Adafruit_BMP3XX.h>
+#include <Adafruit_Sensor.h>
 
-/**************************************************************************************
- * INCLUDE
- **************************************************************************************/
+#define SEALEVELPRESSURE_HPA (1013.25)
 
-#include <SPI.h>
+Adafruit_BMP3XX bmp; // I2C mode
 
-#include <107-Arduino-BMP388.h>
+void setup() {
+  Serial.begin(115200);
+  while (!Serial);
+  Serial.println("BMP388 I²C Test");
 
-/**************************************************************************************
- * CONSTANTS
- **************************************************************************************/
+  // Default I²C address is 0x77 (or 0x76 if SDO is tied to GND)
+  if (!bmp.begin_I2C()) {
+    Serial.println("Could not find a valid BMP388 sensor, check wiring!");
+    while (1);
+  }
 
-static int const BMP388_CS_PIN  = 2;
-static int const BMP388_INT_PIN = 6;
-
-/**************************************************************************************
- * NAMESPACE
- **************************************************************************************/
-
-using namespace drone;
-
-/**************************************************************************************
- * GLOBAL VARIABLES
- **************************************************************************************/
-
-ArduinoBMP388 bmp388([](){ digitalWrite(BMP388_CS_PIN, LOW); },
-                     [](){ digitalWrite(BMP388_CS_PIN, HIGH); },
-                     [](uint8_t const d) -> uint8_t { return SPI.transfer(d); },
-                     [](unit::Pressure const pressure)
-                     {
-                         Serial.print(pressure.value() / 100.0);
-                         Serial.print(" hPa / ");
-                         Serial.print(ArduinoBMP388::convertPressureToAltitude(pressure).value());
-                         Serial.println(" m");
-                     },
-                     [](unit::Temperature const temperature)
-                     {
-                         Serial.print(temperature.value() + 273.15);
-                         Serial.println(" °C");
-                     });
-
-/**************************************************************************************
- * SETUP/LOOP
- **************************************************************************************/
-
-void setup()
-{
-  Serial.begin(9600);
-  while(!Serial) { }
-
-  /* Print data of BMP388 sensor. */
-  Serial.print(bmp388);
-
-  /* Setup SPI access */
-  SPI.begin();
-  pinMode(BMP388_CS_PIN, OUTPUT);
-  digitalWrite(BMP388_CS_PIN, HIGH);
-
-  /* Attach interrupt handler */
-  pinMode(BMP388_INT_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(BMP388_INT_PIN), [](){ bmp388.onExternalEventHandler(); }, FALLING);
-
-  /* Configure BMP388 */
-  bmp388.begin(BMP388::OutputDataRate::ODR_12_5_Hz);
+  // Set up oversampling and filter initialization
+  bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
+  bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
+  bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
+  bmp.setOutputDataRate(BMP3_ODR_50_HZ);
 }
 
-void loop()
-{
+void loop() {
+  if (!bmp.performReading()) {
+    Serial.println("Failed to perform reading :(");
+    return;
+  }
 
+  Serial.print("Temperature = ");
+  Serial.print(bmp.temperature);
+  Serial.println(" *C");
+
+  Serial.print("Pressure = ");
+  Serial.print(bmp.pressure / 100.0);
+  Serial.println(" hPa");
+
+  Serial.print("Approx. Altitude = ");
+  Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA));
+  Serial.println(" m");
+
+  Serial.println();
+  delay(2000);
 }
-
-/**************************************************************************************
- * FUNCTION DEFINITION
- **************************************************************************************/
