@@ -2,7 +2,7 @@
 #include <Adafruit_BMP3XX.h>
 #include <Adafruit_Sensor.h>
 
-#define SEALEVELPRESSURE_HPA (1013.25)
+#define SEALEVELPRESSURE_HPA (1022.8) // Sea level pressure in SLC
 
 Adafruit_BMP3XX bmp; // I2C mode
 
