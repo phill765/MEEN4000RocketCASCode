@@ -1,109 +1,43 @@
-/*
-  Getting time and date using u-blox commands
-  By: davidallenmann
-  SparkFun Electronics
-  Date: April 16th, 2019
-  License: MIT. See license file for more information but you can
-  basically do whatever you want with this code.
+#include <SparkFun_u-blox_GNSS_v3.h> // Install "SparkFun u-blox GNSS v3" via Library Manager
 
-  This example shows how to query a u-blox module for the current time and date. We also
-  turn off the NMEA output on the I2C port. This decreases the amount of I2C traffic
-  dramatically.
+SFE_UBLOX_GNSS_SERIAL myGNSS;
 
-  Note: you will need to set your Serial Monitor to 500000 Baud to see the output
+// Define free digital pins on the Arduino Nano ESP32 for Serial1
+const int GNSS_RX_PIN = D0; // Connect to NEO-F10 TX
+const int GNSS_TX_PIN = D1; // Connect to NEO-F10 RX
 
-  Leave NMEA parsing behind. Now you can simply ask the module for the datums you want!
+void setup() {
+  Serial.begin(115200);
+  while (!Serial); // Wait for USB Serial Monitor to open
+  Serial.println("NEO-F10N UART Test on Nano ESP32");
 
-  Feel like supporting open source hardware?
-  Buy a board from SparkFun!
-  ZED-F9P RTK2: https://www.sparkfun.com/products/15136
-  NEO-M8P RTK: https://www.sparkfun.com/products/15005
-  SAM-M8Q: https://www.sparkfun.com/products/15106
+  // Start hardware Serial1 on custom pins at the NEO-F10 default 38400 baud
+  Serial1.begin(38400, SERIAL_8N1, GNSS_RX_PIN, GNSS_TX_PIN);
 
-  Hardware Connections:
-  Plug a Qwiic cable into the GNSS and a BlackBoard
-  If you don't have a platform with a Qwiic connection use the SparkFun Qwiic Breadboard Jumper (https://www.sparkfun.com/products/14425)
-  Open the serial monitor at 115200 baud to see the output
-*/
-
-#include <Wire.h> //Needed for I2C to GNSS
-
-#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
-SFE_UBLOX_GNSS myGNSS;
-
-long lastTime = 0; //Simple local timer. Limits amount if I2C traffic to u-blox module.
-
-void setup()
-{
-  Serial.begin(500000); //Increase serial speed to maximize
-  while (!Serial)
-    ; //Wait for user to open terminal
-  Serial.println("SparkFun u-blox Example");
-
-  Wire.begin();
-  Wire.setClock(400000); // Increase I2C clock speed to 400kHz
-
-  //myGNSS.enableDebugging(); //Uncomment this line to enable debug messages over Serial
-
-  if (myGNSS.begin() == false) //Connect to the u-blox module using Wire port
-  {
-    Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-    while (1)
-      ;
+  // Connect the library to Serial1
+  while (myGNSS.begin(Serial1) == false) {
+    Serial.println("u-blox GNSS not detected at 38400 baud. Retrying...");
+    delay(1000);
   }
 
-  myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-  //myGNSS.saveConfiguration(); //Optional: Save the current settings to flash and BBR
-
-  myGNSS.setNavigationFrequency(5); //Set output to 5 times a second
+  Serial.println("GNSS connected!");
   
-  byte rate = myGNSS.getNavigationFrequency(); //Get the update rate of this module
-  Serial.print("Current update rate: ");
-  Serial.println(rate);
+  // Optional: Save CPU overhead by outputting only UBX binary messages instead of NMEA
+  myGNSS.setUART1Output(COM_TYPE_UBX); 
 }
 
-void loop()
-{
-  // Calling getPVT returns true if there actually is a fresh navigation solution available.
-  if (myGNSS.getPVT())
-  {
-    lastTime = millis(); //Update the timer
-
+void loop() {
+  // getPVT() returns true when a new Position, Velocity, Time solution arrives
+  if (myGNSS.getPVT()) {
     long latitude = myGNSS.getLatitude();
-    Serial.print(F("Lat: "));
-    Serial.print(latitude);
-
     long longitude = myGNSS.getLongitude();
-    Serial.print(F(" Long: "));
-    Serial.print(longitude);
-    Serial.print(F(" (degrees * 10^-7)"));
-
-    long altitude = myGNSS.getAltitude();
-    Serial.print(F(" Alt: "));
-    Serial.print(altitude);
-    Serial.print(F(" (mm)"));
-
     byte SIV = myGNSS.getSIV();
-    Serial.print(F(" SIV: "));
-    Serial.print(SIV);
 
-    Serial.print(" ");
-    Serial.print(myGNSS.getYear());
-    Serial.print("-");
-    Serial.print(myGNSS.getMonth());
-    Serial.print("-");
-    Serial.print(myGNSS.getDay());
-    Serial.print(" ");
-    Serial.print(myGNSS.getHour());
-    Serial.print(":");
-    Serial.print(myGNSS.getMinute());
-    Serial.print(":");
-    Serial.print(myGNSS.getSecond());
-    Serial.print(" nanoseconds: ");
-    Serial.print(myGNSS.getNanosecond()); // Nanoseconds can be negative
-
-    myGNSS.flushPVT();
-
-    Serial.println();
+    Serial.print("Lat: ");
+    Serial.print(latitude / 10000000.0, 7);
+    Serial.print(" | Lon: ");
+    Serial.print(longitude / 10000000.0, 7);
+    Serial.print(" | Satellites: ");
+    Serial.println(SIV);
   }
 }
