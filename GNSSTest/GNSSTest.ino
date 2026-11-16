@@ -1,4 +1,4 @@
-#include <SparkFun_u-blox_GNSS_v3.h> // Install "SparkFun u-blox GNSS v3" via Library Manager
+#include <SparkFun_u-blox_GNSS_v3.h>  // Install "SparkFun u-blox GNSS v3" via Library Manager
 
 SFE_UBLOX_GNSS_SERIAL myGNSS;
 
@@ -31,13 +31,18 @@ void loop() {
   if (myGNSS.getPVT()) {
     long latitude = myGNSS.getLatitude();
     long longitude = myGNSS.getLongitude();
+    long altitude = myGNSS.getAltitude();
+
     byte SIV = myGNSS.getSIV();
 
     Serial.print("Lat: ");
     Serial.print(latitude / 10000000.0, 7);
     Serial.print(" | Lon: ");
     Serial.print(longitude / 10000000.0, 7);
+    Serial.print(" | Altitude: ");
+    Serial.print(altitude / 1000.0);
     Serial.print(" | Satellites: ");
     Serial.println(SIV);
+    
   }
 }
